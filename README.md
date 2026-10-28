@@ -292,3 +292,7 @@ adb push flows.json /sdcard/Android/data/com.oneblock/files/flows.json
 ## 7. 许可证
 
 MIT —— 见 [LICENSE](LICENSE)。
+
+## 8. 更新日志
+
+- **v2.5** —— X / B站（含竖屏）/ 抖音（含直播间）三端适配；配置可运行时替换；界面按 clean 规范重做
