@@ -1,0 +1,49 @@
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    name: assembleDebug
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 用 runner 上现成的 Android SDK（自带 platform 34 和 build-tools），
+      # 顺便把可能缺的包补齐，避免 license 问题
+      - name: Set up Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
+          echo "ANDROID_HOME=$ANDROID_HOME"
+
+      # 不走 wrapper：wrapper 里指向的是国内镜像，runner 上直接装官方 Gradle 更稳
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: oneblock-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

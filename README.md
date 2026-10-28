@@ -4,7 +4,11 @@
 
 版本 v2.5 · minSdk 26 / targetSdk 34 · debug 签名（仓库里不放大文件，APK 自己编一下即可，见「5.1 编译」）。
 
+[![build](https://github.com/XU-DONGYU/onekey-block/actions/workflows/build.yml/badge.svg)](https://github.com/XU-DONGYU/onekey-block/actions/workflows/build.yml) [![license](https://img.shields.io/badge/license-MIT-3B82F6.svg)](LICENSE)
+
 ---
+
+
 
 ## 1. 介绍
 
@@ -277,3 +281,7 @@ adb push flows.json /sdcard/Android/data/com.oneblock/files/flows.json
 - **高频批量拉黑会触发风控**。建议一次一个，别连点。
 - **无障碍权限等于读全屏内容**。这是系统机制，本 App 不联网、不上传（没有 INTERNET 权限），但你要清楚这一点。
 - **上不了应用商店**。这类工具在 Google Play / 国内商店都属于违规，只能自己签名自己装。
+
+## 7. 许可证
+
+MIT —— 见 [LICENSE](LICENSE)。
