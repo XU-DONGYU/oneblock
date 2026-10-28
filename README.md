@@ -2,7 +2,7 @@
 
 屏幕上一个悬浮球：**点一下**，自动把当前正在看的那个账号拉黑（屏蔽）。支持 X、B站、抖音。
 
-**已经编译好了**：`dist/oneblock-v2.3-debug.apk`（35 KB，debug 签名，minSdk 26 / targetSdk 34）。传到手机点开安装即可，不用装 Android Studio。
+版本 v2.5 · minSdk 26 / targetSdk 34 · debug 签名（仓库里不放大文件，APK 自己编一下即可，见「5.1 编译」）。
 
 ---
 
