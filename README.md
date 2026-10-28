@@ -245,6 +245,30 @@ adb shell settings put secure accessibility_enabled 1
 3. 找到那行的 `text=` / `desc=`，把 `flows.json` 的 `pattern` 改成对应正则
 4. 重新编译安装
 
+### 5.4 不重新编译也能改配置
+
+配置有三层优先级，**从高到低**：
+
+| 优先级 | 位置 | 怎么改 |
+|---|---|---|
+| 1 | `Android/data/com.oneblock/files/flows.json` | `adb push` 或文件管理器直接替换 |
+| 2 | App 内部副本 | App 里点「导入 flows.json」，用系统文件选择器挑一个 |
+| 3 | 内置 assets | 改源码重新编译 |
+
+改完在 App 里点「**重新加载配置**」立即生效，状态栏会显示当前用的是哪一层：
+
+```
+⚙️ 配置：外部文件（7 套流程）
+```
+
+所以**加一个新 App、或者改某个选择器，都不需要重新打包**——把 json 推进去、点一下重载就行。
+
+```bash
+# 例子：把改好的配置推上去
+adb push flows.json /sdcard/Android/data/com.oneblock/files/flows.json
+```
+
+> 外部文件解析失败会自动回落到下一层，不会把 App 弄挂。
 ## 6. 已知限制
 
 - **App 一改版就可能断**。选择器是猜界面，不是官方接口。所以留了「长按抓控件」这个自校准口子。
