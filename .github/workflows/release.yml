@@ -1,0 +1,49 @@
+name: release
+
+# 只有 push v* tag 才走这里：编译 + 建 Release + 挂 APK。
+# 单独一个工作流，不受 build.yml 里 paths-ignore 的影响。
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # 建 Release 需要写权限
+
+jobs:
+  release:
+    name: build & release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1 || true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK for release
+        run: cp app/build/outputs/apk/debug/app-debug.apk "oneblock-${GITHUB_REF_NAME}-debug.apk"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: oneblock-${{ github.ref_name }}-debug.apk
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true

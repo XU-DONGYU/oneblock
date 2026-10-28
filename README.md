@@ -187,6 +187,8 @@ v2.3 起这一步改成了坐标点击 `(0.929, 0.093)`，从 2.7 秒降到 ~20m
 - **直接下**：去 [Releases](https://github.com/XU-DONGYU/onekey-block/releases) 拿现成的 APK（打 `v*` tag 时 CI 自动发版）
 - **下最新构建**：仓库 Actions 页面里最新那次运行的 `oneblock-debug-apk` artifact（保留 90 天）
 
+> 纯文档/图片的提交（**.md、docs_*.png、LICENSE）**不会触发编译**，只有代码变动才跑；发版仍由 * tag 触发，两者是分开的工作流。
+
 > 第一次构建会下载 AGP 8.5.2 + Gradle 8.7（约 300 MB），需要联网。
 > `gradle-wrapper.properties` 里的下载地址指向腾讯云镜像，因为本机直连 `services.gradle.org` 会被重定向到一个连不上的 CDN。换到网络正常的环境后，把 `distributionUrl` 改回官方地址即可。
 

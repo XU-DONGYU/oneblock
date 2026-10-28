@@ -1,14 +1,22 @@
 name: build
 
+# 只在「代码有变动」时编译：纯文档/图片/许可证的提交直接跳过。
+# 注意 tag 的发布走另一个工作流（release.yml），这里不处理 tag，
+# 免得 paths-ignore 把发版也一起挡掉。
 on:
   push:
     branches: [master]
-    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs_*.png'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.gitattributes'
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write   # 打 tag 时要建 Release，需要写权限
+  contents: read
 
 jobs:
   apk:
@@ -42,24 +50,9 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK (artifact)
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: oneblock-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
-      # ---------------- 只有打 v* tag 时才走下面，发 Release ----------------
-
-      - name: Rename APK for release
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: cp app/build/outputs/apk/debug/app-debug.apk "oneblock-${GITHUB_REF_NAME}-debug.apk"
-
-      - name: Create release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: oneblock-${{ github.ref_name }}-debug.apk
-          name: ${{ github.ref_name }}
-          generate_release_notes: true
-          fail_on_unmatched_files: true
