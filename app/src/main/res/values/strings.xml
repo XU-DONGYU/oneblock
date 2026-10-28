@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">一键拉黑</string>
+    <string name="acc_label">一键拉黑 · 步骤执行</string>
+    <string name="acc_summary">读取当前界面控件，按预设步骤点击「更多 → 拉黑 → 确认」</string>
+    <string name="acc_desc">本服务用于执行悬浮球上的固定点击步骤：读取当前屏幕的控件信息，找到「更多」「拉黑」等按钮并点击。只在本机使用，不联网、不上传任何内容。</string>
+</resources>

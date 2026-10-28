@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "flows": [
+    {
+      "name": "X（Twitter）· 全屏视频播放器",
+      "packages": ["com.twitter.android"],
+      "detect": { "by": "desc", "pattern": "^悬浮视频播放器$" },
+      "notes": "全屏播放器：点作者那行里的 @handle 进主页 → 更多选项 → 屏蔽 → 屏蔽 → 返回回到播放器。播放器控制层会自动隐藏，所以这一步带 reveal：找不到控件就先点一下屏幕正中把它唤出来。",
+      "steps": [
+        { "action": "wait", "ms": 80 },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^@[^\\s]+$",
+          "reveal": true,
+          "timeoutMs": 3000,
+          "gapMs": 1600
+        },
+        {
+          "action": "click",
+          "by": "desc",
+          "pattern": "^更多选项$",
+          "timeoutMs": 2500,
+          "gapMs": 150
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(block|屏蔽|封锁|拉黑)",
+          "timeoutMs": 2500,
+          "gapMs": 150
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(block|屏蔽|封锁|拉黑|确定|确认)$",
+          "timeoutMs": 2500,
+          "gapMs": 200
+        },
+        { "action": "back" }
+      ]
+    },
+    {
+      "name": "X（Twitter）· 用户主页",
+      "packages": ["com.twitter.android"],
+      "detect": { "by": "desc", "pattern": "^更多选项$" },
+      "notes": "别人的主页：右上角「更多选项」→「屏蔽 @用户」→ 确认。已屏蔽的号菜单里是「取消屏蔽」，匹配不到。",
+      "steps": [
+        { "action": "wait", "ms": 80 },
+        {
+          "action": "click",
+          "by": "desc",
+          "pattern": "^更多选项$",
+          "timeoutMs": 2500,
+          "gapMs": 150
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(block|屏蔽|封锁|拉黑)",
+          "timeoutMs": 2500,
+          "gapMs": 150
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(block|屏蔽|封锁|拉黑|确定|确认)$",
+          "timeoutMs": 2500,
+          "gapMs": 60
+        }
+      ]
+    },
+    {
+      "name": "X（Twitter）",
+      "packages": ["com.twitter.android"],
+      "notes": "时间线/帖子页：每条帖子右上角「发帖选项」→「屏蔽 @用户」→「屏蔽」。一屏好几条时取屏幕中间那条。全屏视频页没有这个按钮，先退出全屏。",
+      "steps": [
+        { "action": "wait", "ms": 80 },
+        {
+          "action": "click",
+          "by": "desc",
+          "pattern": "^(发帖选项|更多|更多选项|more|more options)$",
+          "pick": "center",
+          "timeoutMs": 2500,
+          "gapMs": 120
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(block|屏蔽|封锁|拉黑)",
+          "timeoutMs": 2500,
+          "gapMs": 120
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(block|屏蔽|封锁|拉黑|确定|确认)$",
+          "timeoutMs": 2500,
+          "gapMs": 60
+        }
+      ]
+    },
+    {
+      "name": "B站（Bilibili）· 竖屏视频",
+      "packages": ["tv.danmaku.bili"],
+      "detect": { "by": "desc", "pattern": "^UP主头像$" },
+      "notes": "竖屏视频流（上下滑那种）：点左下角 UP 主头像 → 弹出的主页卡片点「进入空间」→ 空间页右上角 ⋯ → 加入黑名单 → 确认 → 返回。",
+      "steps": [
+        { "action": "wait", "ms": 80 },
+        {
+          "action": "click",
+          "by": "desc",
+          "pattern": "^UP主头像$",
+          "timeoutMs": 2000,
+          "gapMs": 1500
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^进入空间$",
+          "timeoutMs": 2500,
+          "gapMs": 2200
+        },
+        { "action": "gesture", "x": 0.944, "y": 0.069, "gapMs": 900 },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(加入黑名单|移除黑名单)",
+          "timeoutMs": 3000,
+          "gapMs": 700
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(确认|确定)$",
+          "timeoutMs": 6000,
+          "gapMs": 400
+        },
+        { "action": "back" }
+      ]
+    },
+    {
+      "name": "B站（Bilibili）",
+      "packages": ["tv.danmaku.bili"],
+      "notes": "视频播放页：点 UP 主那一行进空间（已经在空间页就自动跳过）；空间页右上角 ⋯ 没有文字/描述，只能按相对坐标点（0.944, 0.069）。拉黑完返回一次，回到原来的页面。",
+      "steps": [
+        { "action": "wait", "ms": 80 },
+        {
+          "action": "click",
+          "by": "desc",
+          "pattern": "^up主.*点击进入空间页",
+          "timeoutMs": 1200,
+          "gapMs": 1600,
+          "optional": true
+        },
+        { "action": "gesture", "x": 0.944, "y": 0.069, "gapMs": 900 },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(加入黑名单|移除黑名单)",
+          "timeoutMs": 3000,
+          "gapMs": 700
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^(确认|确定)$",
+          "timeoutMs": 6000,
+          "gapMs": 400
+        },
+        { "action": "back" }
+      ]
+    },
+    {
+      "name": "抖音 · 直播间",
+      "packages": ["com.ss.android.ugc.aweme"],
+      "detect": { "by": "text", "pattern": "^说点什么", "find": "说点什么" },
+      "notes": "直播间：点左上角主播信息条 → 弹出的资料卡里点主播名字进主页 → 更多 → 拉黑 → 确认拉黑 → 返回回直播间。主播信息条的描述各房间不一样（有的以「本场点赞」结尾，有的是「认证标签」），所以按相对坐标点 (0.197, 0.094)；资料卡里那一下也是坐标。",
+      "steps": [
+        { "action": "wait", "ms": 80 },
+        { "action": "gesture", "x": 0.197, "y": 0.094, "gapMs": 1600 },
+        { "action": "gesture", "x": 0.168, "y": 0.672, "gapMs": 2200 },
+        { "action": "gesture", "x": 0.929, "y": 0.093, "gapMs": 1200 },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^拉黑$",
+          "find": "拉黑",
+          "timeoutMs": 8000,
+          "gapMs": 1200
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^确认拉黑$",
+          "find": "确认拉黑",
+          "timeoutMs": 8000,
+          "gapMs": 800
+        },
+        { "action": "back" }
+      ]
+    },
+    {
+      "name": "抖音（安卓版）",
+      "packages": ["com.ss.android.ugc.aweme"],
+      "notes": "推荐页/视频页：点左下角 @作者 进主页（已经在主页就自动跳过这步）→ 右上角「更多」→ 拉黑 → 确认拉黑 → 返回一次回原页面。抖音控件树很大，文字步骤用 find 让系统搜索，否则一次全扫要好几秒。",
+      "steps": [
+        { "action": "wait", "ms": 80 },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^@[^\\s]+$",
+          "find": "@",
+          "timeoutMs": 1000,
+          "gapMs": 1600,
+          "optional": true
+        },
+        { "action": "gesture", "x": 0.929, "y": 0.093, "gapMs": 900 },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^拉黑$",
+          "find": "拉黑",
+          "timeoutMs": 8000,
+          "gapMs": 1200
+        },
+        {
+          "action": "click",
+          "by": "text",
+          "pattern": "^确认拉黑$",
+          "find": "确认拉黑",
+          "timeoutMs": 8000,
+          "gapMs": 800
+        },
+        { "action": "back" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.oneblock'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.oneblock"
+        minSdk 26
+        targetSdk 34
+        versionCode 14
+        versionName "2.4"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        debug {
+            // ????????debug ???????????? keystore
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+
+
+
