@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 来自 clean 设计规范：12/14/16/20/24/32 字阶，8pt 间距网格 -->
+    <color name="primary">#3B82F6</color>
+    <color name="primary_dark">#2563EB</color>
+    <color name="success">#16A34A</color>
+    <color name="danger">#DC2626</color>
+    <color name="warning">#D97706</color>
+
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_muted">#F9FAFB</color>
+    <color name="border">#E5E7EB</color>
+    <color name="text">#111827</color>
+    <color name="text_muted">#6B7280</color>
+    <color name="text_faint">#9CA3AF</color>
+</resources>

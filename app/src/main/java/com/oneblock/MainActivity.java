@@ -6,6 +6,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,9 +21,21 @@ public class MainActivity extends Activity {
 
     private static final int REQ_IMPORT = 20;
 
-    private TextView statusView;
-    private TextView logView;
+    private static final int C_SUCCESS = 0xff16A34A;
+    private static final int C_DANGER = 0xffDC2626;
+    private static final int C_MUTED = 0xff9CA3AF;
+
     private final Handler h = new Handler(Looper.getMainLooper());
+
+    private View dotOverlay;
+    private View dotAcc;
+    private View dotBall;
+    private TextView valOverlay;
+    private TextView valAcc;
+    private TextView valBall;
+    private TextView valConfig;
+    private TextView btnToggle;
+    private TextView logView;
 
     private final Runnable tick = new Runnable() {
         @Override
@@ -35,11 +48,29 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // 白底 + 深色状态栏图标，跟页面融为一体
+        try {
+            getWindow().setStatusBarColor(0xFFFFFFFF);
+            getWindow().setNavigationBarColor(0xFFFFFFFF);
+            int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (Build.VERSION.SDK_INT >= 26) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+            getWindow().getDecorView().setSystemUiVisibility(flags);
+        } catch (Throwable ignored) {
+        }
         setContentView(R.layout.activity_main);
         Logx.init(this);
         FlowEngine.init(this);
 
-        statusView = findViewById(R.id.status);
+        dotOverlay = findViewById(R.id.dotOverlay);
+        dotAcc = findViewById(R.id.dotAcc);
+        dotBall = findViewById(R.id.dotBall);
+        valOverlay = findViewById(R.id.valOverlay);
+        valAcc = findViewById(R.id.valAcc);
+        valBall = findViewById(R.id.valBall);
+        valConfig = findViewById(R.id.valConfig);
+        btnToggle = findViewById(R.id.btnToggle);
         logView = findViewById(R.id.log);
 
         findViewById(R.id.btnOverlay).setOnClickListener(new View.OnClickListener() {
@@ -68,10 +99,28 @@ public class MainActivity extends Activity {
             }
         });
 
-        findViewById(R.id.btnToggle).setOnClickListener(new View.OnClickListener() {
+        btnToggle.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 toggleBall();
+            }
+        });
+
+        findViewById(R.id.btnImport).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                pickConfig();
+            }
+        });
+
+        findViewById(R.id.btnReload).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Flow.reload();
+                int n = Flow.load(MainActivity.this).size();
+                Toast.makeText(MainActivity.this,
+                        "已重载：" + Flow.source() + "，" + n + " 套流程", Toast.LENGTH_LONG).show();
+                render();
             }
         });
 
@@ -91,24 +140,6 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 Logx.clear();
-                render();
-            }
-        });
-
-        findViewById(R.id.btnImport).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                pickConfig();
-            }
-        });
-
-        findViewById(R.id.btnReload).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Flow.reload();
-                int n = Flow.load(MainActivity.this).size();
-                Toast.makeText(MainActivity.this,
-                        "已重载：" + Flow.source() + "，" + n + " 套流程", Toast.LENGTH_LONG).show();
                 render();
             }
         });
@@ -138,7 +169,7 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "已停止悬浮球", Toast.LENGTH_SHORT).show();
         } else {
             if (!Settings.canDrawOverlays(this)) {
-                Toast.makeText(this, "先点第 1 步授予悬浮窗权限", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "先授予悬浮窗权限", Toast.LENGTH_SHORT).show();
                 return;
             }
             Intent i = new Intent(this, OverlayService.class);
@@ -147,27 +178,41 @@ public class MainActivity extends Activity {
             } else {
                 startService(i);
             }
-            Toast.makeText(this, "已启动，回桌面/切到目标 App 就能看到", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "已启动，回到目标 App 就能看到", Toast.LENGTH_SHORT).show();
         }
         h.postDelayed(new Runnable() {
             @Override
             public void run() {
                 render();
             }
-        }, 500);
+        }, 400);
     }
 
     private void render() {
         boolean overlay = Settings.canDrawOverlays(this);
         boolean acc = BlockAccessibilityService.instance != null;
         boolean ball = OverlayService.running;
-        String s = (overlay ? "✅" : "⬜️") + " 悬浮窗权限\n"
-                + (acc ? "✅" : "⬜️") + " 无障碍服务\n"
-                + (ball ? "✅" : "⬜️") + " 悬浮球运行中\n"
-                + "⚙️ 配置：" + Flow.source() + "（" + Flow.load(this).size() + " 套流程）";
-        statusView.setText(s);
+
+        bind(dotOverlay, valOverlay, overlay, overlay ? "已授予" : "未授予");
+        bind(dotAcc, valAcc, acc, acc ? "已开启" : "未开启");
+        bind(dotBall, valBall, ball, ball ? "运行中" : "已停止");
+
+        btnToggle.setText(ball ? "停止悬浮球" : "启动悬浮球");
+
+        int count = Flow.load(this).size();
+        valConfig.setText(Flow.source() + " · " + count + " 套流程");
+
         String log = Logx.dump();
         logView.setText(log.isEmpty() ? "（暂无日志）" : log);
+    }
+
+    private void bind(View dot, TextView value, boolean ok, String text) {
+        value.setText(text);
+        value.setTextColor(ok ? C_SUCCESS : C_MUTED);
+        GradientDrawable d = new GradientDrawable();
+        d.setShape(GradientDrawable.OVAL);
+        d.setColor(ok ? C_SUCCESS : C_DANGER);
+        dot.setBackground(d);
     }
 
     /** 选一个 flows.json 导入到 App 内部，导入后立即生效，不用重新编译。 */

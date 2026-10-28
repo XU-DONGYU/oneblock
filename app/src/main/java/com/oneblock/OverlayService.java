@@ -138,7 +138,7 @@ public class OverlayService extends Service implements FlowEngine.Listener {
         ball.setTextColor(Color.WHITE);
         ball.setTextSize(16f);
         ball.setGravity(Gravity.CENTER);
-        ball.setBackground(dot(0xff22303c));
+        ball.setBackground(dot(0xff111827));
 
         int size = dp(62);
         lp = new WindowManager.LayoutParams(
@@ -235,13 +235,13 @@ public class OverlayService extends Service implements FlowEngine.Listener {
         main.post(new Runnable() {
             @Override
             public void run() {
-                int color = 0xff22303c;
+                int color = 0xff111827;
                 if (state == FlowEngine.STATE_RUNNING) {
-                    color = 0xff1565c0;
+                    color = 0xff3B82F6;
                 } else if (state == FlowEngine.STATE_OK) {
-                    color = 0xff2e7d32;
+                    color = 0xff16A34A;
                 } else if (state == FlowEngine.STATE_FAIL) {
-                    color = 0xffc62828;
+                    color = 0xffDC2626;
                 }
                 if (ball != null) {
                     ball.setBackground(dot(color));
@@ -254,7 +254,7 @@ public class OverlayService extends Service implements FlowEngine.Listener {
                         @Override
                         public void run() {
                             if (ball != null) {
-                                ball.setBackground(dot(0xff22303c));
+                                ball.setBackground(dot(0xff111827));
                             }
                         }
                     }, 1200);
@@ -269,7 +269,7 @@ public class OverlayService extends Service implements FlowEngine.Listener {
         if (wm == null) {
             return;
         }
-        marker = new ArrowView(this, 0xE6E53935);
+        marker = new ArrowView(this, 0xE6DC2626);
         marker.setAlpha(0f);
         mlp = new WindowManager.LayoutParams(
                 dp(24), dp(44),
