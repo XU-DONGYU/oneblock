@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # 发 Release 需要写权限
 
 jobs:
   apk:
@@ -56,3 +56,26 @@ jobs:
           name: oneblock-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # 改了 versionName 就直接发 Release，不用再手动打 tag。
+      # 同一个版本只发一次：已经有 v2.6 了就直接跳过。
+      - name: Read versionName
+        id: ver
+        run: |
+          V=$(grep -m1 'versionName' app/build.gradle | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "v=$V" >> "$GITHUB_OUTPUT"
+          echo "当前版本：$V"
+
+      - name: Publish release if this version has none
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.ver.outputs.v }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG 的 Release 已经存在，跳过"
+            exit 0
+          fi
+          cp app/build/outputs/apk/debug/app-debug.apk "oneblock-$TAG-debug.apk"
+          gh release create "$TAG" "oneblock-$TAG-debug.apk" \
+            --title "$TAG" --generate-notes --target "$GITHUB_SHA"
+          echo "已发布 $TAG"

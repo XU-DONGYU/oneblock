@@ -212,7 +212,7 @@ v2.3 起这一步改成了坐标点击 `(0.929, 0.093)`，从 2.7 秒降到 ~20m
 
 不想本地装环境的话，两条路：
 
-- **直接下**：去 [Releases](https://github.com/XU-DONGYU/onekey-block/releases) 拿现成的 APK（打 `v*` tag 时 CI 自动发版）
+- **直接下**：去 [Releases](https://github.com/XU-DONGYU/onekey-block/releases) 拿现成的 APK（**改了 `versionName` 推上去就自动发版**，同一版本只发一次；也可以手动打 `v*` tag 发版）
 - **下最新构建**：仓库 Actions 页面里最新那次运行的 `oneblock-debug-apk` artifact（保留 90 天）
 
 > 纯文档/图片的提交（**.md、docs_*.png、LICENSE）**不会触发编译**，只有代码变动才跑；发版仍由 * tag 触发，两者是分开的工作流。
