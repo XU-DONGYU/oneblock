@@ -152,7 +152,8 @@ public final class FlowEngine {
         return UiUtil.find(cands, f.detectBy, p, true) != null;
     }
 
-    private static void execute(BlockAccessibilityService svc, String source) {        AccessibilityNodeInfo root = svc.root();
+    private static void execute(BlockAccessibilityService svc, String source) {
+        AccessibilityNodeInfo root = svc.root();
         String pkg = root != null ? UiUtil.s(root.getPackageName()) : "";
         if (pkg.isEmpty()) {
             pkg = svc.lastPackage;
@@ -165,21 +166,97 @@ public final class FlowEngine {
             emit(STATE_FAIL, "没有适配 " + shown);
             return;
         }
-        Logx.add(svc, "[" + source + "] 开始：" + flow.name + " / " + pkg + " / " + flow.steps.size() + " 步");
+        int attempts = Math.max(1, flow.attempts);
+        Logx.add(svc, "[" + source + "] 开始：" + flow.name + " / " + pkg + " / " + flow.steps.size() + " 步"
+                + (attempts > 1 ? "（最多 " + attempts + " 次）" : ""));
+        String lastFail = "";
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            String fail = runSteps(svc, flow);
+            if (fail == null) {
+                Logx.add(svc, "[" + source + "] 完成：" + flow.name);
+                emit(STATE_OK, "完成：" + flow.name);
+                return;
+            }
+            lastFail = fail;
+            Logx.add(svc, "[" + source + "] 第 " + attempt + " 次尝试卡在：" + fail);
+            if (attempt < attempts) {
+                // 收一下现场：把可能弹出来的面板/弹窗关掉，再重来一遍
+                svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+                sleep(700);
+            }
+        }
+        emit(STATE_FAIL, lastFail);
+    }
+
+    /** 跑一遍整套步骤：成功返回 null，失败返回卡住的那一步。 */
+    private static String runSteps(BlockAccessibilityService svc, Flow flow) {
         for (int i = 0; i < flow.steps.size(); i++) {
             Flow.Step step = flow.steps.get(i);
             boolean ok = runStep(svc, step, i + 1);
             if (!ok && !step.optional) {
-                Logx.add(svc, "[" + source + "] 第" + (i + 1) + "步失败：" + step.describe());
-                emit(STATE_FAIL, "第" + (i + 1) + "步失败：" + step.describe());
-                return;
+                return "第" + (i + 1) + "步 " + step.describe();
             }
             if (!ok) {
                 Logx.add(svc, "第" + (i + 1) + "步（可跳过）未命中：" + step.describe());
             }
         }
-        Logx.add(svc, "[" + source + "] 完成：" + flow.name);
-        emit(STATE_OK, "完成：" + flow.name);
+        return null;
+    }
+
+    /**
+     * 同一个文字可能既出现在正文里、又出现在按钮上（比如抖音视频页的 @作者，正文里也有一份）。
+     * 命中多个时优先挑「能点的那个」，否则很可能点在正文上、什么都没发生。
+     */
+    private static List<AccessibilityNodeInfo> preferClickable(List<AccessibilityNodeInfo> hits) {
+        if (hits.size() < 2) {
+            return hits;
+        }
+        List<AccessibilityNodeInfo> out = new ArrayList<AccessibilityNodeInfo>();
+        for (int i = 0; i < hits.size(); i++) {
+            AccessibilityNodeInfo n = hits.get(i);
+            AccessibilityNodeInfo target = n;
+            try {
+                if (!n.isClickable()) {
+                    AccessibilityNodeInfo p = n;
+                    for (int d = 0; d < 3 && p != null; d++) {
+                        p = p.getParent();
+                        if (p != null && p.isClickable()) {
+                            android.graphics.Rect a = UiUtil.rect(n);
+                            android.graphics.Rect b = UiUtil.rect(p);
+                            long an = (long) a.width() * a.height();
+                            long bn = (long) b.width() * b.height();
+                            // 只接受「紧包着文字」的可点祖先，避免点到整个屏幕那么大的容器
+                            if (bn > 0 && bn <= 8 * Math.max(1L, an)) {
+                                target = p;
+                            }
+                            break;
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            out.add(target);
+        }
+        return out;
+    }
+
+    /** 按 step 的条件找节点：文字优先走系统搜索（快），其他走全量遍历。 */
+    private static List<AccessibilityNodeInfo> search(BlockAccessibilityService svc, Flow.Step step) {
+        AccessibilityNodeInfo root = svc.root();
+        if (root == null) {
+            return new ArrayList<AccessibilityNodeInfo>();
+        }
+        if ("text".equals(step.by) && step.findText != null && step.findText.length() > 0) {
+            List<AccessibilityNodeInfo> found;
+            try {
+                found = root.findAccessibilityNodeInfosByText(step.findText);
+            } catch (Throwable t) {
+                found = null;
+            }
+            return found == null ? new ArrayList<AccessibilityNodeInfo>()
+                    : UiUtil.findAll(found, step.by, step.compiled(), true);
+        }
+        return UiUtil.findAll(UiUtil.flatten(root, 500), step.by, step.compiled(), true);
     }
 
     private static boolean runStep(BlockAccessibilityService svc, Flow.Step step, int idx) {
@@ -194,14 +271,50 @@ public final class FlowEngine {
             return true;
         }
         if ("gesture".equals(a)) {
-            boolean ok = svc.tapPercent(step.x, step.y);
-            Logx.add(svc, "第" + idx + "步 点坐标 " + step.x + "," + step.y + (ok ? " OK" : " 失败"));
-            sleep(step.gapMs);
-            return ok;
+            // 坐标点击要有「验货」：点完等 expect（by/pattern）出现，没出现就再点一次。
+            // 纯坐标最怕的就是页面还没加载完就点了，这样至少不会一次失手就整条流程死掉。
+            int tries = Math.max(1, step.tries);
+            boolean hasExpect = step.pattern != null && step.pattern.length() > 0;
+            for (int t = 1; t <= tries; t++) {
+                boolean ok = svc.tapPercent(step.x, step.y);
+                Logx.add(svc, "第" + idx + "步 点坐标 " + step.x + "," + step.y
+                        + (tries > 1 ? "（第" + t + "/" + tries + "次）" : "") + (ok ? " OK" : " 失败"));
+                if (!ok) {
+                    return false;
+                }
+                if (!hasExpect) {
+                    sleep(step.gapMs);
+                    return true;
+                }
+                long deadline = System.currentTimeMillis() + Math.max(400L, step.timeoutMs);
+                while (System.currentTimeMillis() < deadline) {
+                    if (!search(svc, step).isEmpty()) {
+                        Logx.add(svc, "第" + idx + "步 坐标点击生效");
+                        sleep(step.gapMs);
+                        return true;
+                    }
+                    sleep(120);
+                }
+                Logx.add(svc, "第" + idx + "步 点了没反应，等不到 " + step.describe());
+                sleep(350);
+            }
+            return false;
         }
         if ("dump".equals(a)) {
             dumpTree(svc);
             return true;
+        }
+        // 等某个控件出现（不发点击）：专门用来等页面加载完，替代拍脑袋的固定 wait
+        if ("waitFor".equals(a)) {
+            long deadline = System.currentTimeMillis() + Math.max(300L, step.timeoutMs);
+            while (System.currentTimeMillis() < deadline) {
+                if (!search(svc, step).isEmpty()) {
+                    Logx.add(svc, "第" + idx + "步 已就绪 " + step.describe());
+                    return true;
+                }
+                sleep(120);
+            }
+            return false;
         }
         // 不再「点完死等 gapMs」：每 60ms 扫一次，一出现就点。
         // 但要求连续两次位置一致才动手，避开菜单弹出动画还没停稳的时候。
@@ -211,20 +324,7 @@ public final class FlowEngine {
         android.graphics.Rect lastRect = null;
         int stable = 0;
         while (System.currentTimeMillis() < deadline) {
-            AccessibilityNodeInfo root = svc.root();
-            List<AccessibilityNodeInfo> hits;
-            if ("text".equals(step.by) && step.findText != null && step.findText.length() > 0) {
-                // 抖音那种几千个控件的树，全量遍历要好几秒还容易漏。让系统自己按字面量搜一遍，快得多。
-                List<AccessibilityNodeInfo> found = null;
-                try {
-                    found = root == null ? null : root.findAccessibilityNodeInfosByText(step.findText);
-                } catch (Throwable ignored) {
-                }
-                hits = found == null ? new ArrayList<AccessibilityNodeInfo>()
-                        : UiUtil.findAll(found, step.by, step.compiled(), true);
-            } else {
-                hits = UiUtil.findAll(UiUtil.flatten(root, 500), step.by, step.compiled(), true);
-            }
+            List<AccessibilityNodeInfo> hits = preferClickable(search(svc, step));
             AccessibilityNodeInfo hit = null;
             if (!hits.isEmpty()) {
                 hit = "center".equals(step.pick)

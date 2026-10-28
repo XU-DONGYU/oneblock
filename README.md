@@ -2,7 +2,7 @@
 
 屏幕上一个悬浮球：**点一下**，自动把当前正在看的那个账号拉黑（屏蔽）。支持 X、B站、抖音。
 
-版本 v2.5 · minSdk 26 / targetSdk 34 · debug 签名（仓库里不放大文件，APK 自己编一下即可，见「5.1 编译」）。
+版本 v2.6 · minSdk 26 / targetSdk 34 · debug 签名（仓库里不放大文件，APK 自己编一下即可，见「5.1 编译」）。
 
 [![build](https://github.com/XU-DONGYU/onekey-block/actions/workflows/build.yml/badge.svg)](https://github.com/XU-DONGYU/onekey-block/actions/workflows/build.yml) [![license](https://img.shields.io/badge/license-MIT-3B82F6.svg)](LICENSE)
 
@@ -136,6 +136,34 @@ FlowEngine（流程引擎）
 
 广告条的「⋯」不是「发帖选项」，本来就匹配不上，会自然跳过。
 
+### 4.4.5 稳定性：坐标点击的三道保险
+
+纯坐标点击是最脆的一环（页面没加载完就点，等于白点，还可能点到旁边的「搜索」按钮上）。v2.6 加了三条规则：
+
+**1. 点坐标前先确认页面对了**
+
+```json
+{ "action": "waitFor", "by": "text", "pattern": "获赞", "find": "获赞", "timeoutMs": 3000 },
+{ "action": "wait", "ms": 400 },
+```
+
+抖音视频页和作者主页长得像，但只有主页有「获赞」。等不到就不往下面走，直接算失败重试——绝不在错误的页面上乱点。
+
+**2. 点完要验货，不行就再点**
+
+```json
+{ "action": "gesture", "x": 0.929, "y": 0.093,
+  "by": "text", "pattern": "^拉黑$", "find": "拉黑",
+  "timeoutMs": 1800, "tries": 3 }
+```
+
+坐标点下去后等「拉黑」出现，1.8 秒没出来就再点一次，最多 3 次。页面渲染慢半拍不再等于失败。
+
+**3. 整套流程失败会重来**
+
+流程级 `"attempts": 2`：失败后先按一次返回收掉弹窗，再从第一步重跑一遍。
+
+**实测**：同一台手机连点 9 次，**9 次全部成功**，单次 4.8~6.1 秒。
 ### 4.5 哪几处只能按坐标点
 
 | 位置 | 相对坐标 | 为什么不能点控件 |
@@ -233,7 +261,7 @@ adb shell settings put secure accessibility_enabled 1
 
 | 字段 | 说明 |
 |---|---|
-| `action` | `click` 点控件 / `wait` 等一下 / `back` 按返回键 / `gesture` 按相对坐标点 / `dump` 抓界面 |
+| `action` | `click` 点控件 / `wait` 等一下 / `back` 按返回键 / `gesture` 按相对坐标点 / `waitFor` 等某个控件出现但不点 / `dump` 抓界面 |
 | `by` | `text` 控件文字、`desc` 无障碍描述、`id` 资源 ID |
 | `pattern` | 正则，默认忽略大小写、部分匹配 |
 | `pick` | `first` 取第一个（默认）｜`center` 屏幕上有多个同样按钮时取「中间那条」 |
@@ -241,12 +269,14 @@ adb shell settings put secure accessibility_enabled 1
 | `reveal` | `true` = 找不到就先点一下屏幕正中再试（唤出会隐藏的控制层） |
 | `timeoutMs` / `gapMs` | 等多久 / 点完等多久 |
 | `optional` | `true` = 找不到也继续 |
+| `tries` | 仅 `gesture` 用。配合 `by`/`pattern` 当验收条件：点完等它出现，没出现再点，最多 `tries` 次 |
 
 **流程字段**
 
 | 字段 | 说明 |
 |---|---|
 | `packages` | 这个流程管哪些包名 |
+| `attempts` | 可选，默认 1。整套流程最多跑几次，失败会先按一次返回再重来 |
 | `detect` | 可选。`{"by":"text","pattern":"^说点什么","find":"说点什么"}` —— 命中才用这套流程，没写的当兜底 |
 
 **选择器断了的处理流程**

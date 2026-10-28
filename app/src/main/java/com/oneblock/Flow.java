@@ -25,6 +25,9 @@ public final class Flow {
     public String detectBy = "";
     public String detectPattern = "";
     public String detectFind = "";
+
+    /** 整套流程最多跑几次（失败会先按一次返回再重来），默认 1。 */
+    public int attempts = 1;
     private Pattern detectCompiled;
 
     public Pattern detect() {
@@ -50,6 +53,7 @@ public final class Flow {
         public float y = 0.5f;
         public boolean optional = false;
         public boolean reveal = false;  // 找不到就先点一下屏幕正中（唤出会隐藏的控制层）再找
+        public int tries = 1;           // gesture：点几次。配合 by/pattern 当「点完应该出现什么」的验收条件
 
         private Pattern compiled;
 
@@ -183,6 +187,7 @@ public final class Flow {
                 JSONObject o = arr.getJSONObject(i);
                 Flow f = new Flow();
                 f.name = o.optString("name", "未命名");
+                f.attempts = o.optInt("attempts", 1);
                 JSONObject dt = o.optJSONObject("detect");
                 if (dt != null) {
                     f.detectBy = dt.optString("by", "text");
@@ -201,6 +206,7 @@ public final class Flow {
                         JSONObject so = st.getJSONObject(j);
                         Step s = new Step();
                         s.action = so.optString("action", "click");
+            s.tries = so.optInt("tries", 1);
                         s.by = so.optString("by", "text");
                         s.pattern = so.optString("pattern", "");
                         s.pick = so.optString("pick", "first");
