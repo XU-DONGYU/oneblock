@@ -2,7 +2,7 @@
 
 屏幕上一个悬浮球：**点一下**，自动把当前正在看的那个账号拉黑（屏蔽）。支持 X、B站、抖音。
 
-版本 v2.6 · minSdk 26 / targetSdk 34 · debug 签名（仓库里不放大文件，APK 自己编一下即可，见「5.1 编译」）。
+版本 v2.6 · minSdk 26 / targetSdk 34 · debug 签名（仓库里不放大文件，APK 自己编一下即可，见「6.1 编译」）。
 
 [![build](https://github.com/XU-DONGYU/onekey-block/actions/workflows/build.yml/badge.svg)](https://github.com/XU-DONGYU/onekey-block/actions/workflows/build.yml) [![license](https://img.shields.io/badge/license-MIT-3B82F6.svg)](LICENSE)
 
@@ -77,9 +77,67 @@ B站、抖音 一屏只有一条内容，本来就没有歧义，所以**不显�
 
 慢的是这几个 App 自己吐控件树的速度，不是点击。原因见下一节。
 
-## 4. 技术路线
+## 4. 项目结构
 
-### 4.1 三层结构
+### 4.1 目录
+
+```text
+onekey-block/
+├── app/                          安卓应用模块，所有代码都在这
+│   ├── src/main/
+│   │   ├── java/com/oneblock/    8 个 Java 文件（见 4.2）
+│   │   ├── assets/
+│   │   │   └── flows.json        ★ 核心配置：每个 App 怎么点
+│   │   ├── res/
+│   │   │   ├── layout/           主界面布局
+│   │   │   ├── drawable/         卡片、按钮的背景样式
+│   │   │   ├── values/           颜色（设计 token）、字符串
+│   │   │   └── xml/              无障碍服务的配置
+│   │   └── AndroidManifest.xml   权限、服务、Activity 声明
+│   └── build.gradle              版本号、SDK 版本、依赖
+├── .github/workflows/
+│   ├── build.yml                 日常构建 + 版本号变了自动发 Release
+│   └── release.yml               打 v* tag 时构建并发 Release
+├── docs_marker.png               箭头截图（README 用）
+├── docs_status.png               主界面截图（README 用）
+├── dist/                         本地打出来的 APK，已 .gitignore，不入库
+├── gradle/wrapper/               固定 Gradle 8.7
+├── gradlew / gradlew.bat         构建入口（macOS/Linux 用前者，Windows 用后者）
+├── build.gradle / settings.gradle  项目级 Gradle 配置
+├── LICENSE                       MIT
+└── README.md                     就是这份
+```
+
+### 4.2 关键文件
+
+| 文件 | 干什么 | 什么时候会改它 |
+|---|---|---|
+| `assets/flows.json` | **全部行为都在这里**：7 套流程，每套是「找什么 → 点什么 → 等多久 → 失败怎么办」 | 换选择器、加新 App。**90% 的改动都在这一个文件** |
+| `FlowEngine.java` | **流程引擎**：按步骤执行，负责找控件、点击、等待、重试、超时看门狗 | 加新的 action 类型、改执行策略 |
+| `Flow.java` | 把 `flows.json` 解析成对象；三层配置加载（外部文件 > 已导入 > 内置） | 加配置字段 |
+| `OverlayService.java` | 悬浮球 + 左侧箭头两个浮窗：显示、拖动、变色、箭头定位 | 改悬浮球的外观和行为 |
+| `BlockAccessibilityService.java` | 无障碍服务：读当前界面控件树、点节点、模拟手势 | 改底层「怎么点」 |
+| `UiUtil.java` | 控件树工具：遍历、按文字/描述匹配、取屏幕中间那条、算坐标 | 改匹配规则 |
+| `MainActivity.java` | 主界面：三步授权、导入/重载配置、看日志 | 改 App 外壳 |
+| `ArrowView.java` | 左侧那个箭头的自绘 View | 改箭头形状/颜色 |
+| `Logx.java` | 环形日志缓冲，App 内展示 + 长按复制 | 基本不用动 |
+| `res/values/colors.xml` | 设计 token：主色 `#3B82F6`、成功绿、危险红、灰阶 | 换配色 |
+| `.github/workflows/*.yml` | CI：构建 APK、发 Release | 改自动化流程 |
+
+### 4.3 想改点什么，去哪改
+
+| 我想… | 改哪里 | 要重新编译吗 |
+|---|---|---|
+| 换某个 App 的选择器 | `assets/flows.json` | **不用**，手机里导入或 `adb push` 后点「重新加载」（见 6.4） |
+| 加一个新 App | 同上，加一套 flow | 同上 |
+| 改悬浮球颜色 / 大小 | `OverlayService.java` | 要 |
+| 改箭头形状 | `ArrowView.java` | 要 |
+| 改主界面 | `res/layout/activity_main.xml` + `res/values/colors.xml` | 要 |
+| 改版本号 | `app/build.gradle` 的 `versionName` / `versionCode` | 要（推上去会自动发 Release） |
+| 改 CI | `.github/workflows/` | 不用 |
+## 5. 技术路线
+
+### 5.1 三层结构
 
 ```
 OverlayService（前台服务）
@@ -97,13 +155,13 @@ FlowEngine（流程引擎）
 
 **流程是配置驱动的**：加一个新 App、改一句选择器，只改 `flows.json`，不用动 Java。
 
-### 4.2 一条流程怎么跑
+### 5.2 一条流程怎么跑
 
 - 每步默认**每 60ms 扫一次控件树**，目标一出现就点，不再「点完死等 900ms」——X 上因此从 2.4 秒降到 1.1 秒。
 - 但要求**连续两次位置完全一致**才动手，避开菜单/弹窗还在动画的时候。
 - 支持 `click` / `wait` / `back` / `gesture`（相对坐标）/ `dump` 五种动作。
 
-### 4.3 踩过的坑与解法
+### 5.3 踩过的坑与解法
 
 | 问题 | 解法 |
 |---|---|
@@ -117,7 +175,7 @@ FlowEngine（流程引擎）
 | 抖音偶发卡住，之后一直提示「上一步还没跑完」 | 某次跨进程调用卡死导致 `running` 永不归位。加 90 秒看门狗 + 轮次号，超时强制放行 |
 | 用记事本改 `flows.json` 后解析失败 | PowerShell/记事本会写 UTF-8 BOM，代码里已自动吃掉 |
 
-### 4.4 实测到的关键控件
+### 5.4 实测到的关键控件
 
 中文版各 App 的按钮命名和直觉不一样，这些是实打实 dump 出来的：
 
@@ -136,7 +194,7 @@ FlowEngine（流程引擎）
 
 广告条的「⋯」不是「发帖选项」，本来就匹配不上，会自然跳过。
 
-### 4.4.5 稳定性：坐标点击的三道保险
+### 5.4.5 稳定性：坐标点击的三道保险
 
 纯坐标点击是最脆的一环（页面没加载完就点，等于白点，还可能点到旁边的「搜索」按钮上）。v2.6 加了三条规则：
 
@@ -164,7 +222,7 @@ FlowEngine（流程引擎）
 流程级 `"attempts": 2`：失败后先按一次返回收掉弹窗，再从第一步重跑一遍。
 
 **实测**：同一台手机连点 9 次，**9 次全部成功**，单次 4.8~6.1 秒。
-### 4.5 哪几处只能按坐标点
+### 5.5 哪几处只能按坐标点
 
 | 位置 | 相对坐标 | 为什么不能点控件 |
 |---|---|---|
@@ -184,7 +242,7 @@ FlowEngine（流程引擎）
 抖音的「更多」是 **contentDescription**，系统没有按描述搜索的 API，只能全量扫——这就是它原来慢的主因。
 v2.3 起这一步改成了坐标点击 `(0.929, 0.093)`，从 2.7 秒降到 ~20ms，整个抖音流程进 3~4 秒。
 
-### 4.6 抖音现在的时间都花在哪
+### 5.6 抖音现在的时间都花在哪
 
 ```
 @作者        249ms   系统搜索（find）
@@ -197,9 +255,9 @@ v2.3 起这一步改成了坐标点击 `(0.929, 0.093)`，从 2.7 秒降到 ~20m
 
 剩下的开销基本是「等界面」和「系统搜索」，已经没有明显的浪费了。
 
-## 5. 部署
+## 6. 部署
 
-### 5.1 编译
+### 6.1 编译
 
 仓库自带 Gradle wrapper：
 
@@ -220,7 +278,7 @@ v2.3 起这一步改成了坐标点击 `(0.929, 0.093)`，从 2.7 秒降到 ~20m
 > 第一次构建会下载 AGP 8.5.2 + Gradle 8.7（约 300 MB），需要联网。
 > `gradle-wrapper.properties` 里的下载地址指向腾讯云镜像，因为本机直连 `services.gradle.org` 会被重定向到一个连不上的 CDN。换到网络正常的环境后，把 `distributionUrl` 改回官方地址即可。
 
-### 5.2 安装与授权
+### 6.2 安装与授权
 
 装好 APK 后打开 App，从上往下点三步：
 
@@ -242,7 +300,7 @@ adb shell settings put secure accessibility_enabled 1
 
 ![主界面](docs_status.png)
 
-### 5.3 改流程 / 校准
+### 6.3 改流程 / 校准
 
 `app/src/main/assets/flows.json` 就是全部行为。改 JSON → 重新编译安装。
 
@@ -286,7 +344,7 @@ adb shell settings put secure accessibility_enabled 1
 3. 找到那行的 `text=` / `desc=`，把 `flows.json` 的 `pattern` 改成对应正则
 4. 重新编译安装
 
-### 5.4 不重新编译也能改配置
+### 6.4 不重新编译也能改配置
 
 配置有三层优先级，**从高到低**：
 
@@ -310,19 +368,20 @@ adb push flows.json /sdcard/Android/data/com.oneblock/files/flows.json
 ```
 
 > 外部文件解析失败会自动回落到下一层，不会把 App 弄挂。
-## 6. 已知限制
+## 7. 已知限制
 
 - **App 一改版就可能断**。选择器是猜界面，不是官方接口。所以留了「长按抓控件」这个自校准口子。
-- **有 4 处只能按坐标点**：B站空间页的 `⋯`、抖音主页的 `更多`、抖音直播的主播信息条和资料卡名字。换机型或 App 改版后可能要重新调，详见 4.5。
+- **有 4 处只能按坐标点**：B站空间页的 `⋯`、抖音主页的 `更多`、抖音直播的主播信息条和资料卡名字。换机型或 App 改版后可能要重新调，详见 5.5。
 - **X 全屏播放器偶发要点两次**：控制条是「点一下切换显示/隐藏」，如果点球时它正好显示，`reveal` 那一下反而会把它关掉，再点一次球即可。
 - **高频批量拉黑会触发风控**。建议一次一个，别连点。
 - **无障碍权限等于读全屏内容**。这是系统机制，本 App 不联网、不上传（没有 INTERNET 权限），但你要清楚这一点。
 - **上不了应用商店**。这类工具在 Google Play / 国内商店都属于违规，只能自己签名自己装。
 
-## 7. 许可证
+## 8. 许可证
 
 MIT —— 见 [LICENSE](LICENSE)。
 
-## 8. 更新日志
+## 9. 更新日志
 
+- **v2.6** —— 抖音稳定性修复：坐标点击前校验页面、点完验收并重试（最多 3 次）、整套失败重来；`versionName` 一变自动发 Release
 - **v2.5** —— X / B站（含竖屏）/ 抖音（含直播间）三端适配；配置可运行时替换；界面按 clean 规范重做
