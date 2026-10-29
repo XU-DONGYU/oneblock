@@ -180,12 +180,43 @@ public final class FlowEngine {
             lastFail = fail;
             Logx.add(svc, "[" + source + "] 第 " + attempt + " 次尝试卡在：" + fail);
             if (attempt < attempts) {
-                // 收一下现场：把可能弹出来的面板/弹窗关掉，再重来一遍
-                svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
-                sleep(700);
+                resetState(svc, flow);
             }
         }
         emit(STATE_FAIL, lastFail);
+    }
+
+    /**
+     * 重试前收拾现场。只在我们自己的面板还开着的时候才按返回——
+     * 绝不盲按，否则一次失败可能把人踢出 App，下一次尝试直接废掉。
+     */
+    private static void resetState(BlockAccessibilityService svc, Flow flow) {
+        if (flow.resetFind.isEmpty()) {
+            svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+            sleep(700);
+            return;
+        }
+        for (int round = 0; round < 2; round++) {
+            boolean found = false;
+            AccessibilityNodeInfo root = svc.root();
+            if (root == null) {
+                return;
+            }
+            for (int i = 0; i < flow.resetFind.size() && !found; i++) {
+                try {
+                    List<AccessibilityNodeInfo> hits =
+                            root.findAccessibilityNodeInfosByText(flow.resetFind.get(i));
+                    found = hits != null && !hits.isEmpty();
+                } catch (Throwable ignored) {
+                }
+            }
+            if (!found) {
+                return;
+            }
+            Logx.add(svc, "重试前关掉残留面板");
+            svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+            sleep(600);
+        }
     }
 
     /** 跑一遍整套步骤：成功返回 null，失败返回卡住的那一步。 */
@@ -314,6 +345,24 @@ public final class FlowEngine {
                 }
                 sleep(120);
             }
+            return false;
+        }
+        // 等界面「停下来」：连续两次采样拿到同一个目标，说明滑动/加载已经稳定，
+        // 避免刚划完就点球、点在上一帧的控件上（抖音最容易这样点错人）
+        if ("settle".equals(a)) {
+            long deadline = System.currentTimeMillis() + Math.max(500L, step.timeoutMs);
+            String last = null;
+            while (System.currentTimeMillis() < deadline) {
+                List<AccessibilityNodeInfo> hits = search(svc, step);
+                String sig = hits.isEmpty() ? "" : UiUtil.s(hits.get(0).getText());
+                if (!sig.isEmpty() && sig.equals(last)) {
+                    Logx.add(svc, "第" + idx + "步 界面已稳定：" + sig);
+                    return true;
+                }
+                last = sig;
+                sleep(120);
+            }
+            Logx.add(svc, "第" + idx + "步 界面还在动，按现状继续");
             return false;
         }
         // 不再「点完死等 gapMs」：每 60ms 扫一次，一出现就点。

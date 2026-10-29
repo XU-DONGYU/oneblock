@@ -26,8 +26,11 @@ public final class Flow {
     public String detectPattern = "";
     public String detectFind = "";
 
-    /** 整套流程最多跑几次（失败会先按一次返回再重来），默认 1。 */
+    /** 整套流程最多跑几次（失败会先收拾现场再重来），默认 1。 */
     public int attempts = 1;
+
+    /** 重试前要检查的字面量：这些控件还在（面板没关）才按返回，避免盲按把人踢出 App。 */
+    public final java.util.List<String> resetFind = new java.util.ArrayList<String>();
     private Pattern detectCompiled;
 
     public Pattern detect() {
@@ -188,6 +191,15 @@ public final class Flow {
                 Flow f = new Flow();
                 f.name = o.optString("name", "未命名");
                 f.attempts = o.optInt("attempts", 1);
+                JSONArray rf = o.optJSONArray("resetFind");
+                if (rf != null) {
+                    for (int k = 0; k < rf.length(); k++) {
+                        String s = rf.optString(k, "");
+                        if (s.length() > 0) {
+                            f.resetFind.add(s);
+                        }
+                    }
+                }
                 JSONObject dt = o.optJSONObject("detect");
                 if (dt != null) {
                     f.detectBy = dt.optString("by", "text");

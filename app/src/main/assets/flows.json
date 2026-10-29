@@ -179,11 +179,22 @@
       "name": "抖音 · 直播间",
       "packages": ["com.ss.android.ugc.aweme"],
       "detect": { "by": "text", "pattern": "^说点什么", "find": "说点什么" },
-      "attempts": 2,
+      "attempts": 3,
+      "resetFind": ["确认拉黑", "拉黑", "取消"],
       "notes": "直播间：点左上角主播信息条 → 弹出的资料卡里点主播名字进主页 → 更多 → 拉黑 → 确认拉黑 → 返回回直播间。主播信息条的描述各房间不一样（有的以「本场点赞」结尾，有的是「认证标签」），所以按相对坐标点 (0.197, 0.094)；资料卡里那一下也是坐标。",
       "steps": [
         { "action": "wait", "ms": 80 },
-        { "action": "gesture", "x": 0.197, "y": 0.094, "gapMs": 1600 },
+        {
+          "action": "gesture",
+          "x": 0.197,
+          "y": 0.094,
+          "by": "text",
+          "pattern": "粉丝",
+          "find": "粉丝",
+          "timeoutMs": 1500,
+          "tries": 2,
+          "gapMs": 1200
+        },
         { "action": "gesture", "x": 0.168, "y": 0.672, "gapMs": 2200 },
         {
           "action": "gesture",
@@ -218,10 +229,18 @@
     {
       "name": "抖音（安卓版）",
       "packages": ["com.ss.android.ugc.aweme"],
-      "attempts": 2,
-      "notes": "推荐页/视频页：点左下角 @作者（正文里也有同名文字，会自动挑能点的那个）→ 右上角「更多」（坐标点击，点完验证「拉黑」是否出现，没出现再点一次）→ 拉黑 → 确认拉黑 → 返回。整套失败会按一次返回再重试一次。",
+      "attempts": 3,
+      "resetFind": ["确认拉黑", "拉黑", "取消"],
+      "notes": "推荐页/视频页，随时点悬浮球都行：先等界面稳定（滑动/加载停下来、作者名连续两次一致）再点 @作者 → 等主页真的出来（获赞）→ 右上角「更多」（坐标，点完验证「拉黑」出现，最多点 3 次）→ 拉黑 → 确认拉黑 → 返回。失败最多重来 3 次，重试前只在自家面板还开着时才按返回。",
       "steps": [
-        { "action": "wait", "ms": 80 },
+        {
+          "action": "settle",
+          "by": "text",
+          "pattern": "^@[^\\s]+$",
+          "find": "@",
+          "timeoutMs": 1500
+        },
+        { "action": "wait", "ms": 60 },
         {
           "action": "click",
           "by": "text",
@@ -236,9 +255,9 @@
           "by": "text",
           "pattern": "获赞",
           "find": "获赞",
-          "timeoutMs": 3000
+          "timeoutMs": 5000
         },
-        { "action": "wait", "ms": 400 },
+        { "action": "wait", "ms": 350 },
         {
           "action": "gesture",
           "x": 0.929,
@@ -263,7 +282,7 @@
           "by": "text",
           "pattern": "^确认拉黑$",
           "find": "确认拉黑",
-          "timeoutMs": 8000,
+          "timeoutMs": 6000,
           "gapMs": 900
         },
         { "action": "back" }

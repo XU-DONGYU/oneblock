@@ -2,7 +2,7 @@
 
 屏幕上一个悬浮球：**点一下**，自动把当前正在看的那个账号拉黑（屏蔽）。支持 X、B站、抖音。
 
-版本 v2.6 · minSdk 26 / targetSdk 34 · debug 签名（仓库里不放大文件，APK 自己编一下即可，见「6.1 编译」）。
+版本 v2.7 · minSdk 26 / targetSdk 34 · debug 签名（仓库里不放大文件，APK 自己编一下即可，见「6.1 编译」）。
 
 [![build](https://github.com/XU-DONGYU/onekey-block/actions/workflows/build.yml/badge.svg)](https://github.com/XU-DONGYU/onekey-block/actions/workflows/build.yml) [![license](https://img.shields.io/badge/license-MIT-3B82F6.svg)](LICENSE)
 
@@ -217,11 +217,19 @@ FlowEngine（流程引擎）
 
 坐标点下去后等「拉黑」出现，1.8 秒没出来就再点一次，最多 3 次。页面渲染慢半拍不再等于失败。
 
-**3. 整套流程失败会重来**
+**3. 点之前先等界面停下来**
 
-流程级 `"attempts": 2`：失败后先按一次返回收掉弹窗，再从第一步重跑一遍。
+``````json
+{ "action": "settle", "by": "text", "pattern": "^@[^\\s]+$", "find": "@", "timeoutMs": 1500 }
+``````
 
-**实测**：同一台手机连点 9 次，**9 次全部成功**，单次 4.8~6.1 秒。
+连续两次采样拿到同一个作者名才算稳定。所以**刷着视频随手点球也行**，不用先停下来等画面静止——刚划完就点也不会点在上一帧的控件上。
+
+**4. 整套流程失败会重来**
+
+流程级 `"attempts": 3`：失败后从第一步重跑，最多三次。重试前**只在自家面板还开着时才按返回**（`resetFind`），绝不盲按——否则一次失败可能把人踢出 App，下一次尝试直接废掉。
+
+**实测**：同一台手机连点 14 次，其中一半是「刚划完视频立刻点球」（模拟随手操作），**14 次全部成功**，单次 5~7 秒。
 ### 5.5 哪几处只能按坐标点
 
 | 位置 | 相对坐标 | 为什么不能点控件 |
@@ -319,7 +327,7 @@ adb shell settings put secure accessibility_enabled 1
 
 | 字段 | 说明 |
 |---|---|
-| `action` | `click` 点控件 / `wait` 等一下 / `back` 按返回键 / `gesture` 按相对坐标点 / `waitFor` 等某个控件出现但不点 / `dump` 抓界面 |
+| `action` | `click` 点控件 / `wait` 等一下 / `back` 按返回键 / `gesture` 按相对坐标点 / `waitFor` 等某个控件出现但不点 / `settle` 等界面停止变化 / `dump` 抓界面 |
 | `by` | `text` 控件文字、`desc` 无障碍描述、`id` 资源 ID |
 | `pattern` | 正则，默认忽略大小写、部分匹配 |
 | `pick` | `first` 取第一个（默认）｜`center` 屏幕上有多个同样按钮时取「中间那条」 |
@@ -334,7 +342,8 @@ adb shell settings put secure accessibility_enabled 1
 | 字段 | 说明 |
 |---|---|
 | `packages` | 这个流程管哪些包名 |
-| `attempts` | 可选，默认 1。整套流程最多跑几次，失败会先按一次返回再重来 |
+| `attempts` | 可选，默认 1。整套流程最多跑几次 |
+| `resetFind` | 可选。重试前检查这些字面量，只有还找得到（自家面板没关）才按返回，避免盲按退出 App |
 | `detect` | 可选。`{"by":"text","pattern":"^说点什么","find":"说点什么"}` —— 命中才用这套流程，没写的当兜底 |
 
 **选择器断了的处理流程**
@@ -383,5 +392,6 @@ MIT —— 见 [LICENSE](LICENSE)。
 
 ## 9. 更新日志
 
+- **v2.7** —— 抖音：点之前等界面稳定（`settle`）、重试前只关自家面板（`resetFind`）、重试次数提到 3；实测「刚划完立刻点」14/14
 - **v2.6** —— 抖音稳定性修复：坐标点击前校验页面、点完验收并重试（最多 3 次）、整套失败重来；`versionName` 一变自动发 Release
 - **v2.5** —— X / B站（含竖屏）/ 抖音（含直播间）三端适配；配置可运行时替换；界面按 clean 规范重做
